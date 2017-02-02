@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,7 +32,8 @@ type HTTP struct {
 	closing int64
 	l       net.Listener
 
-	backends []*httpBackend
+	backends    []*httpBackend
+	bufferError int
 }
 
 const (
@@ -212,6 +214,13 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			resp, err := b.post(outBytes, query, authHeader)
 			if err != nil {
 				log.Printf("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
+				if strings.Contains(err.Error(), "retry buffer full") {
+					h.bufferError += 1
+					if h.bufferError > 10 {
+						log.Println("Too many problems with relay posting to backends. Retry buffer full, will abort!")
+						os.Exit(7)
+					}
+				}
 			} else {
 				if resp.StatusCode/100 == 5 {
 					log.Printf("5xx response for relay %q backend %q: %v", h.Name(), b.name, resp.StatusCode)

@@ -157,9 +157,9 @@ func (l *bufferList) pop() *batch {
 
 func (l *bufferList) add(buf []byte, query string, auth string) (*batch, error) {
 	l.cond.L.Lock()
+	defer l.cond.L.Unlock()
 
 	if l.size+len(buf) > l.maxSize {
-		l.cond.L.Unlock()
 		return nil, ErrBufferFull
 	}
 
@@ -195,6 +195,5 @@ func (l *bufferList) add(buf []byte, query string, auth string) (*batch, error) 
 		b.bufs = append(b.bufs, buf)
 	}
 
-	defer l.cond.L.Unlock()
 	return *cur, nil
 }
